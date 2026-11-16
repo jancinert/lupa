@@ -103,4 +103,10 @@ final class UnbootedApplication implements Application
 	{
 		throw new InspectorException('The application did not start.');
 	}
+
+
+	public function getServiceByType(string $type): ?object
+	{
+		return null;
+	}
 }

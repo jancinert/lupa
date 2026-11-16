@@ -12,7 +12,7 @@ $dir = TempDir . '/project';
 mkdir($dir);
 file_put_contents($dir . '/.mcp.json', '{"mcpServers":{"other":{"command":"npx","env":{}}}}');
 
-Assert::same(0, (new Installer($output))->install($dir, ['docker' => 'app-www']));
+Assert::same(0, (new Installer($output))->install($dir, ['docker' => 'app-www', 'framework' => 'nette']));
 rewind($output);
 $log = stream_get_contents($output);
 Assert::contains('Created lupa.neon', $log);
@@ -108,11 +108,20 @@ Assert::same(
 Assert::same(['command' => 'php', 'args' => ['vendor/bin/lupa', 'serve']], Installer::createServerEntry([]));
 
 
-// an application without a framework
+// an application without a framework is recognized by having no Nette, and the configuration names its mode
 $plain = TempDir . '/plain';
 mkdir($plain);
-(new Installer($output))->install($plain, ['framework' => 'none']);
+$log = fopen('php://memory', 'w+');
+(new Installer($log))->install($plain, []);
+rewind($log);
+Assert::contains('Setting up an application without a framework (no Nette found', (string) stream_get_contents($log));
 Assert::contains("\tframework: none\n", (string) file_get_contents($plain . '/lupa.neon'));
+Assert::contains("\tframework: nette\n", (string) file_get_contents("$skeleton/lupa.neon"));
+// what the autoloader of the application offers decides over the files; init in CommandLine.phpt passes it
+$detected = TempDir . '/detected';
+mkdir($detected);
+(new Installer($output))->install($detected, [], 'nette');
+Assert::contains("\tframework: nette\n", (string) file_get_contents("$detected/lupa.neon"));
 $description = require $plain . '/lupa-bootstrap.php';
 Assert::same(['parameters', 'databases'], array_keys($description));
 Assert::same('none', Lupa\Inspector::createContainer($plain . '/lupa.neon')->getByType(Lupa\Config::class)->framework);

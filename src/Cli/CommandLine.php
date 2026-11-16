@@ -3,6 +3,7 @@
 namespace Lupa\Cli;
 
 use Lupa\AuditLog;
+use Lupa\ComposerMetadata;
 use Lupa\Config;
 use Lupa\Inspector;
 use Lupa\InspectorException;
@@ -23,11 +24,12 @@ final class CommandLine
 		Usage:
 		  lupa serve                 run the MCP server on stdin/stdout
 		  lupa call <tool> [<json>]  run one tool and print the result
-		  lupa init [--framework none] [--docker <container>] [--docker-workdir <dir>] [--php <command>]
+		  lupa init [--framework nette|none] [--docker <container>] [--docker-workdir <dir>] [--php <command>]
 		                             create lupa.neon and lupa-bootstrap.php, register the server in .mcp.json
 		                             and, where the directories exist, in .cursor/mcp.json and .vscode/mcp.json;
 		                             --php names the PHP command when it is not php, e.g. "ddev exec php";
-		                             --framework none sets up an application without a framework
+		                             --framework decides between a Nette application and one without
+		                             a framework, which init otherwise tells by the classes the application has
 
 		Options:
 		  --project <dir>     root of the application (default: found from the current directory)
@@ -87,7 +89,9 @@ final class CommandLine
 				case 'call':
 					return $this->call($arguments, $options);
 				case 'init':
-					return (new Installer($this->stdout))->install($this->locateProject($options)->root, $options);
+					$project = $this->locateProject($options);
+					$detected = isset($options['framework']) ? null : self::detectFramework($project);
+					return (new Installer($this->stdout))->install($project->root, $options, $detected);
 				case '--version':
 					fwrite($this->stdout, Inspector::Version . "\n");
 					return 0;
@@ -171,6 +175,25 @@ final class CommandLine
 		$audit->open();
 		$worker = new WorkerClient(PHP_BINARY, $this->script, $project, $config->timeout, $container->getByType(Masking::class));
 		return [$project, $container->getByType(ToolCatalog::class), $audit, $worker, $config];
+	}
+
+
+	/**
+	 * The framework of the application by the rule the server uses: the packages Composer installed for it,
+	 * read without running its autoloader, which may check a PHP other than this one, as in a Docker container;
+	 * the classes of an autoloader without Composer; null when the application has no autoloader yet.
+	 */
+	private static function detectFramework(Project $project): ?string
+	{
+		if (ComposerMetadata::readInstalled($project->autoload, $project->root) === null) {
+			if (!is_file($project->autoload)) {
+				return null;
+			}
+
+			require_once $project->autoload;
+		}
+
+		return Inspector::detectFramework($project->autoload, $project->root);
 	}
 
 

@@ -37,4 +37,10 @@ interface Application
 	 * identified by DatabaseTarget::$service.
 	 */
 	function getDatabaseConnection(string $service): object;
+
+	/**
+	 * A service of the application of the given class or interface, such as the factory of its Latte engine
+	 * or its cache storage, so that a tool works as the application configured it; null when there is none.
+	 */
+	function getServiceByType(string $type): ?object;
 }

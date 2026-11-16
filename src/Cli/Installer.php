@@ -16,7 +16,8 @@ final class Installer
 		# Lupa – development use only.
 
 		inspector:
-			# PHP file returning the Configurator of the application, or its DI container.
+			# PHP file returning the Configurator of the application or its DI container,
+			# or with framework: none the array that describes the application.
 			bootstrap: lupa-bootstrap.php
 
 			# Kill switch; the environment variable LUPA_DISABLED=1 works too.
@@ -163,30 +164,32 @@ final class Installer
 
 	/**
 	 * @param array<string, string> $options  docker, docker-workdir, php, framework
+	 * @param ?string $detected  the framework the autoloader of the application offers, null before it has one
 	 */
-	public function install(string $root, array $options): int
+	public function install(string $root, array $options, ?string $detected = null): int
 	{
 		if (!is_dir($root)) {
 			throw new InspectorException("Project directory '$root' not found.");
 		}
 
-		$framework = $options['framework'] ?? 'nette';
+		$framework = $options['framework'] ?? $detected ?? self::detectFramework($root);
 		if (!in_array($framework, ['nette', 'none'], true)) {
 			throw new InspectorException("Unknown framework '$framework', use nette or none.");
 		}
 
 		$plain = $framework === 'none';
 		$shape = $plain ? 'plain' : self::detectBootstrap($root);
-		$this->createFile(
-			$root . '/lupa.neon',
-			$plain
-				? str_replace(
-					"inspector:\n",
-					"inspector:\n\t# The application has no framework: the bootstrap returns an array.\n\tframework: none\n\n",
-					self::ConfigTemplate,
-				)
-				: self::ConfigTemplate,
-		);
+		fwrite($this->output, $plain
+			? 'Setting up an application without a framework'
+				. (isset($options['framework']) ? '' : ' (no Nette found; --framework nette overrides)')
+				. ".\n"
+			: 'Setting up a Nette application' . (isset($options['framework']) ? '' : ' (--framework none overrides)') . ".\n");
+		$this->createFile($root . '/lupa.neon', str_replace(
+			"inspector:\n",
+			"inspector:\n\t# nette, or none for an application without a framework, whose bootstrap returns an array.\n"
+			. "\tframework: $framework\n\n",
+			self::ConfigTemplate,
+		));
 		$created = $this->createFile(
 			$root . '/lupa-bootstrap.php',
 			$plain ? self::PlainBootstrap : sprintf(self::BootstrapTemplate, self::BootstrapReturns[$shape]),
@@ -235,6 +238,16 @@ final class Installer
 		}
 
 		return ['command' => $serve[0], 'args' => array_slice($serve, 1)];
+	}
+
+
+	/**
+	 * Before the application has an autoloader: nette when it has the bootstrap of a Nette application,
+	 * app/Bootstrap.php, or app/bootstrap.php of the older ones.
+	 */
+	private static function detectFramework(string $root): string
+	{
+		return is_file("$root/app/Bootstrap.php") || is_file("$root/app/bootstrap.php") ? 'nette' : 'none';
 	}
 
 

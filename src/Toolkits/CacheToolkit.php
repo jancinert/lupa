@@ -1,10 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace Lupa\Nette\Toolkits;
+namespace Lupa\Toolkits;
 
 use Lupa\InspectorException;
 use Lupa\Masking;
-use Lupa\Nette\NetteApplication;
 use Lupa\Scalar;
 use Lupa\Tools\AppContext;
 use Lupa\Tools\Arguments;
@@ -100,7 +99,9 @@ final class CacheToolkit implements Toolkit
 	{
 		$arguments = new Arguments($arguments);
 		$dir = $context->getDirectory('tempDir', 'temp') . '/cache';
-		if (!is_dir($dir)) {
+		// removing by a tag goes through the storage of the application, which need not keep files
+		$throughStorage = $tool === 'cache_invalidate' && $arguments->has('tag');
+		if (!$throughStorage && !is_dir($dir)) {
 			throw new InspectorException("Cache directory '$dir' not found; the application may not use FileStorage.");
 		}
 
@@ -196,9 +197,9 @@ final class CacheToolkit implements Toolkit
 	private function invalidate(string $dir, Arguments $arguments, AppContext $context): ToolResult
 	{
 		if ($arguments->has('tag')) {
-			$storage = NetteApplication::getContainerOf($context->application)->getByType('Nette\Caching\Storage', false)
-				?? NetteApplication::getContainerOf($context->application)->getByType('Nette\Caching\IStorage', false);
-			if ($storage === null) {
+			$storage = $context->application->getServiceByType('Nette\Caching\Storage')
+				?? $context->application->getServiceByType('Nette\Caching\IStorage');
+			if ($storage === null || !method_exists($storage, 'clean')) {
 				throw new InspectorException('The application has no cache storage service.');
 			}
 

@@ -1,6 +1,6 @@
 # Lupa
 
-An MCP server that lets an AI assistant (Claude Code, Codex and other MCP clients) look inside a running PHP application built on Nette 2.4 or 3: the DI container, presenters, routes, forms, permissions, Latte templates, Tracy reports, the database through Dibi or nette/database, Ruckusing migrations and the file cache.
+An MCP server that lets an AI assistant (Claude Code, Codex and other MCP clients) look inside a running PHP application: its database through PDO, Dibi or nette/database, Tracy reports, Latte templates, Ruckusing migrations and the file cache with or without a framework, and in a Nette 2.4 or 3 application also the DI container, presenters, routes, forms and permissions.
 
 It is made for legacy applications too (PHP 7.4, `nette/di` 2.4.16+, Tracy 2.4+, Latte 2.4+), and for development environments only, with safeguards against leaking data and against writes.
 
@@ -12,7 +12,7 @@ Versions 0.x are early: the names of tools and the keys of the configuration may
 
 - `lupa serve` speaks MCP over stdin/stdout and never loads the application itself.
 - Every tool call runs in a fresh PHP process, so the code is always current and a fatal error, exhausted memory or a time-out ends only that call.
-- Before the application's DI container is initialized, an environment guard reads from the compiled container code where every Dibi, nette/database, PDO and Kdyby Redis connection points, without connecting. A host that is not allowed, a denied database name or a target it cannot determine stops the call. Other clients (Doctrine DBAL, Nextras, Predis, HTTP clients) and connections the application creates outside the container are not guarded.
+- Before the application's DI container is initialized, an environment guard reads from the compiled container code, or without a framework from the array the bootstrap returns, where every Dibi, nette/database, PDO and Kdyby Redis connection points, without connecting. A host that is not allowed, a denied database name or a target it cannot determine stops the call. Other clients (Doctrine DBAL, Nextras, Predis, HTTP clients) and connections the application creates outside the container are not guarded.
 - Database tools run in read-only transactions that are rolled back, with limits on time, rows, columns and cell length. Both `db_query` and `db_explain` take a direct `SELECT` over base tables, with aliases, joins, `*` and common aggregates, and values for its `?` placeholders. CTEs, subqueries, views and generated columns are refused. Use `db_table` for schema details and `db_explain` for query plans.
 - E-mails, phone numbers, birth numbers, bank accounts, card numbers, values under secret-looking keys, credentials in URLs, bearer tokens, JWTs and password hashes are masked in results, and so are the columns the configuration names. `db_query` can return a masked column under its original name, but cannot filter, join, group, sort or compute with it. `db_explain` accepts only public columns. Errors of the database driver are replaced by a generic message. Database comments are masked too. `db_table` shows a column default only when it is a number, an empty value, a date or time, a common SQL expression such as `CURRENT_TIMESTAMP` or a value of an enum; any other text default is masked. A database value or comment beginning with `{` or `[` is treated as JSON; if it begins like a document (`{"`, `[{`, `["` or `[[`) and cannot be decoded, including excessive nesting, the whole value is hidden, while text such as `[a note]` is masked as text.
 - Results that carry values from the database, logs, the cache or a rendered page say in a `_notice` field that these are data, not instructions.
@@ -35,6 +35,8 @@ Versions 0.x are early: the names of tools and the keys of the configuration may
 | Migrations, cache, console | `migrations_status`, `migrations_conflicts`, `cache_namespaces`, `cache_get`, `console_commands` |
 | Active, off by default | `render`, `cache_invalidate` |
 
+An application without a framework gets all of them except the tools of the DI container, presenters and routing, forms and permissions, the console and `render`.
+
 For example:
 
 - `tracy_report` reads a BlueScreen, follows the chain of exceptions and maps frames of compiled templates to the line of the `.latte` file. On request it adds the markdown report of Tracy 2.12+, with the arguments of the calls.
@@ -56,15 +58,15 @@ Files, sessions and external services are outside these safeguards, so keep the 
 
 ```bash
 composer require --dev jancinert/lupa
-vendor/bin/lupa init        # creates lupa.neon, lupa-bootstrap.php and .mcp.json
+vendor/bin/lupa init        # creates lupa.neon, lupa-bootstrap.php and .mcp.json, for Nette or without a framework
 vendor/bin/lupa call app_info
 ```
 
-`init` writes a bootstrap that works with `App\Bootstrap::boot()` and with the `App\Bootstrap` of a current nette/web-project; for any other application it says what the file has to return. Then check that `lupa-bootstrap.php` returns the application's `Configurator` without side effects (no session start, no output, no database queries, no error reporting to external services), add the database host to `guard.allowedHosts` and restart the AI client. When the application runs in Docker, `init --docker <container>` writes a `docker exec` entry into `.mcp.json`.
+`init` sets up a Nette application when the application has the Configurator of Nette, and an application without a framework otherwise. It reads the packages Composer installed, wherever the application keeps them, without running its code, which may check another PHP, as in a Docker container; without Composer it asks the classes of the application, and before the application has an autoloader it looks for `app/Bootstrap.php`; `--framework nette` or `--framework none` decides instead. For Nette it writes a bootstrap that works with `App\Bootstrap::boot()` and with the `App\Bootstrap` of a current nette/web-project; for any other application it says what the file has to return. Then check that `lupa-bootstrap.php` returns the application's `Configurator` without side effects (no session start, no output, no database queries, no error reporting to external services), add the database host to `guard.allowedHosts` and restart the AI client. When the application runs in Docker, `init --docker <container>` writes a `docker exec` entry into `.mcp.json`.
 
 The server is registered in `.mcp.json`, which Claude Code reads, and in `.cursor/mcp.json` and `.vscode/mcp.json` where those directories exist. Another client gets the same command with the full path, e.g. `codex mcp add lupa -- php /path/to/app/vendor/bin/lupa serve`.
 
-Lupa can also run from its own checkout next to an application that does not have it installed: `php bin/lupa call app_info --project <application> --config <lupa.neon>`.
+Lupa can also run from its own checkout next to an application that does not have it installed: `php bin/lupa call app_info --project <application> --config <lupa.neon>`. An application with none of the libraries Lupa needs (nette/di, nette/neon, nette/schema and theirs) gets them from the checkout, whose dependencies are then installed with `composer update --no-dev` on the PHP of the application. An extension those libraries need, such as mbstring for nette/neon 4, may be provided by a polyfill the checkout installed. An application that has only some of them, such as one using nette/utils or nette/database alone, is told what it has and what is missing, as versions resolved apart need not fit together; Lupa installed into it with Composer avoids that. The framework of the application is told by its own packages, never by those of the checkout.
 
 ## Configuration
 
@@ -113,7 +115,7 @@ Name such keys in `masking.keys` and such columns in `masking.columns`, and let 
 
 ## Applications without a framework
 
-The database tools, the Tracy tools, the migrations and the tools of the project need no framework. For an application that has none, `vendor/bin/lupa init --framework none` sets `framework: none` in `lupa.neon` and writes a bootstrap that returns an array instead of a Configurator:
+The database tools, the Tracy and Latte tools, the cache, the migrations and the tools of the project need no framework. For an application without Nette, `vendor/bin/lupa init` sets `framework: none` in `lupa.neon` and writes a bootstrap that returns an array instead of a Configurator:
 
 ```php
 return [
@@ -128,7 +130,7 @@ return [
 ];
 ```
 
-Only `appDir`, `logDir` and `tempDir` are read from the parameters. A connection is described by what creates it, never passed as an object, so that the environment guard reads where it points before anything connects. The tools for the DI container, presenters, routing, forms, permissions, Latte, the cache and rendering are not offered.
+Only `appDir`, `logDir` and `tempDir` are read from the parameters. A connection is described by what creates it, never passed as an object, so that the environment guard reads where it points before anything connects. `latte_check` compiles the templates with a plain Latte engine, which does not know the filters and tags the application adds, and `cache_invalidate` removes entries by a tag only through the storage of a Nette application. When `lupa.neon` does not name the framework, Lupa uses Nette if the application has its Configurator, by the packages Composer installed for it, or by its classes when it has no Composer.
 
 ## HTTP on shared hosting
 

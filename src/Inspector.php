@@ -9,11 +9,13 @@ use Nette\DI\Extensions\ExtensionsExtension;
 use Nette\InvalidArgumentException;
 use Nette\InvalidStateException;
 use Nette\Neon\Exception;
+use Nette\Neon\Neon;
+use Nette\Schema\Expect;
 
 
 final class Inspector
 {
-	public const Version = '0.1.0';
+	public const Version = '0.2.0';
 
 	public const Name = 'lupa';
 
@@ -26,20 +28,40 @@ final class Inspector
 		'di' => Nette\Toolkits\ContainerToolkit::class,
 		'presenters' => Nette\Toolkits\PresenterToolkit::class,
 		'tracy' => Toolkits\TracyToolkit::class,
-		'latte' => Nette\Toolkits\LatteToolkit::class,
+		'latte' => Toolkits\LatteToolkit::class,
 		'router' => Nette\Toolkits\RouterToolkit::class,
 		'forms' => Nette\Toolkits\FormToolkit::class,
 		'acl' => Nette\Toolkits\AclToolkit::class,
-		'cache' => Nette\Toolkits\CacheToolkit::class,
+		'cache' => Toolkits\CacheToolkit::class,
 		'console' => Nette\Toolkits\ConsoleToolkit::class,
 		'render' => Nette\Toolkits\RenderToolkit::class,
 	];
+
+	/** Sections of SimpleToolkits whose tools need a Nette application; the others serve any application. */
+	private const NetteToolkits = ['di', 'presenters', 'router', 'forms', 'acl', 'console', 'render'];
 
 
 	public static function isDisabledByEnvironment(): bool
 	{
 		$value = getenv(self::KillSwitch);
 		return $value !== false && $value !== '' && $value !== '0';
+	}
+
+
+	/**
+	 * The framework of the application when lupa.neon does not name it: 'nette' when the application has
+	 * the Configurator, by the packages Composer installed for it, or by its loaded classes when it has no Composer.
+	 * Without arguments, in the process of the application, its registered class loaders tell where its packages are.
+	 * @param ?string $autoload  and $root find only the metadata of an application whose autoloader is not loaded
+	 */
+	public static function detectFramework(?string $autoload = null, ?string $root = null): string
+	{
+		$packages = ComposerMetadata::readInstalled($autoload, $root, $autoload === null);
+		if ($packages !== null) {
+			return isset($packages['nette/bootstrap']) || isset($packages['nette/nette']) ? 'nette' : 'none';
+		}
+
+		return class_exists('Nette\Bootstrap\Configurator') || class_exists('Nette\Configurator') ? 'nette' : 'none';
 	}
 
 
@@ -51,6 +73,11 @@ final class Inspector
 	{
 		if (!is_file($configFile)) {
 			throw new ConfigException("Configuration file '$configFile' not found. Create it with 'lupa init'.");
+		} elseif (!class_exists(ContainerLoader::class) || !class_exists(Neon::class) || !class_exists(Expect::class)) {
+			// e.g. an application whose packages only claim to replace them
+			throw new InspectorException(
+				"Lupa needs nette/di, nette/neon and nette/schema, which the application does not provide. Install Lupa into it with 'composer require --dev jancinert/lupa'.",
+			);
 		}
 
 		$configFile = (string) realpath($configFile);
@@ -64,13 +91,13 @@ final class Inspector
 				$compiler->addExtension('database', new DI\DatabaseExtension);
 				$compiler->addExtension('migrations', new DI\MigrationsExtension);
 				foreach (self::SimpleToolkits as $name => $toolkit) {
-					$framework = strncmp($toolkit, Nette\NetteApplication::class, 11) === 0 ? 'nette' : null; // by the namespace
+					$framework = in_array($name, self::NetteToolkits, true) ? 'nette' : null;
 					$compiler->addExtension($name, new DI\ToolkitExtension($toolkit, $framework));
 				}
 
 				$compiler->loadConfig($configFile);
 				return null;
-			}, [$configFile, self::Version, PHP_VERSION_ID, self::getSourceFingerprint()]);
+			}, [$configFile, self::Version, PHP_VERSION_ID, self::getSourceFingerprint(), self::detectFramework()]);
 		} catch (Exception|InvalidStateException|InvalidArgumentException $e) {
 			throw new ConfigException("Configuration file '$configFile': " . $e->getMessage(), 0, $e);
 		}

@@ -63,7 +63,12 @@ final class PlainApplication implements Application
 
 		$description = (static fn() => require $bootstrapFile)();
 		if (!is_array($description)) {
-			throw new InspectorException("Bootstrap file '$bootstrapFile' must return an array with 'parameters' and 'databases'.");
+			throw new InspectorException(
+				"Bootstrap file '$bootstrapFile' must return an array with 'parameters' and 'databases'"
+				. (is_object($description)
+					? '; for a Nette application that returns its Configurator, set inspector.framework: nette.'
+					: '.'),
+			);
 		}
 
 		return new self($description);
@@ -155,5 +160,11 @@ final class PlainApplication implements Application
 			is_string($database['password'] ?? null) ? $database['password'] : null,
 			(array) ($database['options'] ?? []) + [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION],
 		);
+	}
+
+
+	public function getServiceByType(string $type): ?object
+	{
+		return null; // the description holds no services
 	}
 }

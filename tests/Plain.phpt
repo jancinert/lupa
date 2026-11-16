@@ -35,6 +35,8 @@ $tools = array_map(
 Assert::contains('db_query', $tools);
 Assert::contains('tracy_errors', $tools);
 Assert::contains('migrations_status', $tools);
+Assert::contains('latte_check', $tools); // Latte and the cache are libraries an application may use on their own
+Assert::contains('cache_get', $tools);
 Assert::notContains('di_services', $tools);
 Assert::notContains('routes', $tools);
 
@@ -66,6 +68,17 @@ Assert::same(['src/list.php'], array_keys($call('db_usage', ['table' => 'custome
 $data = $call('tracy_errors');
 Assert::same(1, $data['total']);
 Assert::contains('made-up warning', $data['entries'][0]['message']);
+
+
+// Latte templates, checked by a plain engine, and the cache of nette/caching in the temp directory the bootstrap names
+$data = $call('latte_check', ['path' => 'src']);
+Assert::same([1, 0], [$data['checked'], $data['errorCount']]);
+Assert::same(['nosuchfilter'], array_map('strtolower', array_column($data['warnings'], 'filter'))); // Latte 2.10 lowercases
+@mkdir($runtimeDir . '/temp/cache', 0777, true); // @ may exist
+$cache = new Nette\Caching\Cache(new Nette\Caching\Storages\FileStorage($runtimeDir . '/temp/cache'), 'Plain');
+$cache->save('customer', ['email' => 'customer1@example.com']);
+Assert::same(['Plain'], array_column($call('cache_namespaces')['namespaces'], 'namespace'));
+Assert::same(['email' => 'c***@***.com'], $call('cache_get', ['namespace' => 'Plain', 'key' => 'customer'])['value']);
 
 
 // the guard reads a target before anything connects

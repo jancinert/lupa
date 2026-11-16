@@ -1,6 +1,6 @@
 {
 	"name": "jancinert/lupa",
-	"description": "MCP server that lets AI assistants inspect a running Nette application, including legacy PHP 7.4 / Nette 2.4 / Dibi projects.",
+	"description": "MCP server that lets AI assistants inspect a running PHP application, with or without Nette, including legacy PHP 7.4 / Nette 2.4 / Dibi projects.",
 	"type": "library",
 	"license": "BSD-3-Clause",
 	"authors": [

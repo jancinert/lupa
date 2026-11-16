@@ -51,6 +51,10 @@ final class Project
 		}
 
 		require_once $this->autoload;
+		$own = dirname(__DIR__) . '/vendor';
+		if (is_file("$own/composer/installed.json")) { // Lupa runs from its own checkout
+			CheckoutLibraries::register($own, $this->autoload);
+		}
 	}
 
 

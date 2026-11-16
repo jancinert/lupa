@@ -6,6 +6,7 @@ use Lupa\Application;
 use Lupa\InspectorException;
 use Lupa\Scalar;
 use Nette\DI\Container;
+use Nette\DI\MissingServiceException;
 use Tracy\Debugger;
 
 
@@ -67,7 +68,10 @@ final class NetteApplication implements Application
 			return new self($container, false, $warning);
 		}
 
-		throw new InspectorException("Bootstrap file '$bootstrapFile' must return a Configurator or " . Container::class . '.');
+		throw new InspectorException(
+			"Bootstrap file '$bootstrapFile' must return a Configurator or " . Container::class
+			. (is_array($result) ? '; for an application described by an array, set inspector.framework: none.' : '.'),
+		);
 	}
 
 
@@ -187,6 +191,21 @@ final class NetteApplication implements Application
 	public function getDatabaseConnection(string $service): object
 	{
 		return $this->container->getService($service);
+	}
+
+
+	public function getServiceByType(string $type): ?object
+	{
+		// the type may come from another version of the libraries than the application has
+		if (!class_exists($type) && !interface_exists($type)) {
+			return null;
+		}
+
+		try {
+			return $this->container->getByType($type, false);
+		} catch (MissingServiceException $e) {
+			return null; // more services of the type, of which none is the one the tools could take
+		}
 	}
 
 

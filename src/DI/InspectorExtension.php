@@ -4,6 +4,7 @@ namespace Lupa\DI;
 
 use Lupa\AuditLog;
 use Lupa\Config;
+use Lupa\Inspector;
 use Lupa\Scalar;
 use Lupa\Tools\ToolCatalog;
 use Lupa\Tools\Toolkit;
@@ -29,7 +30,8 @@ final class InspectorExtension extends Extension
 	public function getConfigSchema(): Schema
 	{
 		return Expect::structure([
-			'framework' => Expect::anyOf('nette', 'none')->default('nette'), // none: the bootstrap returns an array
+			// none: the bootstrap returns an array; without a value it follows what the application has installed
+			'framework' => Expect::anyOf('nette', 'none')->nullable(),
 			'bootstrap' => Expect::string('lupa-bootstrap.php'),
 			'enabled' => Expect::bool(true),
 			'timeout' => Expect::int(30)->min(1),
@@ -44,7 +46,7 @@ final class InspectorExtension extends Extension
 
 	public function getFramework(): string
 	{
-		return Scalar::toString($this->getSettings()->framework);
+		return Scalar::toString($this->getSettings()->framework ?? Inspector::detectFramework());
 	}
 
 
@@ -61,7 +63,7 @@ final class InspectorExtension extends Extension
 				$config->disabledTools,
 				array_map(fn($path) => $this->resolvePath(Scalar::toString($path)), (array) $config->applicationConfig),
 				$config->instructions,
-				$config->framework,
+				$this->getFramework(),
 			]);
 		$builder->addDefinition($this->prefix('audit'))
 			->setFactory(AuditLog::class, [$this->resolvePath(Scalar::toString($config->audit))]);

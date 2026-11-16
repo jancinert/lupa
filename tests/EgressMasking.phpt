@@ -329,7 +329,7 @@ mkdir(TempDir . '/cache/latte', 0777, true);
 $cache = new Nette\Caching\Cache(new Nette\Caching\Storages\FileStorage(TempDir . '/cache'), 'Privacy');
 $cache->save('document', '{"pa\u0073sword":"synthetic-cache-secret"}');
 $cache->save('dictionary', ['person@example.test' => 1]);
-$cacheTool = new Lupa\Nette\Toolkits\CacheToolkit($masking);
+$cacheTool = new Lupa\Toolkits\CacheToolkit($masking);
 Assert::same('{"password":"***"}', $cacheTool->call('cache_get', ['namespace' => 'Privacy', 'key' => 'document'], $context)->data['value']);
 Assert::same(
 	['p***@***.test' => 1],
@@ -339,7 +339,7 @@ file_put_contents(TempDir . '/source.latte', 'password="synthetic-latte-secret"'
 file_put_contents(TempDir . '/cache/latte/privacy.php', "<?php\n/** source: " . TempDir . "/source.latte */\n/* line 1 */\n");
 Assert::same(
 	'>    1: password=***',
-	(new Lupa\Nette\Toolkits\LatteToolkit($masking))->call(
+	(new Lupa\Toolkits\LatteToolkit($masking))->call(
 		'latte_map_line',
 		['file' => 'privacy.php', 'line' => 3],
 		$context,

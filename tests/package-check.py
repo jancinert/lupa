@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='lupa-package-') as directory:
 	commands = [
 		[args.php, args.composer, 'require', '--dev', 'jancinert/lupa:0.1.0', '--no-interaction', '--no-progress'],
 		[args.php, args.composer, 'check-platform-reqs'],
-		[args.php, 'vendor/bin/lupa', 'init', '--framework', 'none'],
+		[args.php, 'vendor/bin/lupa', 'init'],  # without Nette in the project, init sets up an application without a framework
 		[args.php, 'vendor/bin/lupa', 'call', 'app_info'],
 	]
 	for command in commands:

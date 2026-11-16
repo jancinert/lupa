@@ -24,7 +24,6 @@ parameters:
 			identifier: method.notFound
 			paths:
 				- src/Nette/Toolkits/FormToolkit.php # methods of the classes, not of their interfaces
-				- src/Nette/Toolkits/LatteToolkit.php
 				- src/Nette/Toolkits/RouterToolkit.php
 		-
 			identifiers: [method.notFound, property.notFound]
@@ -44,9 +43,10 @@ parameters:
 				- src/Nette/Toolkits/FormToolkit.php # getComponentTree() came in nette/component-model 3.1
 				- src/Nette/Toolkits/RouterToolkit.php # getFlags() is missing in nette/routing 3.0.0
 				- src/Nette/Toolkits/RenderToolkit.php # getHttpCode() is missing in nette/application 2.4.0
+				- src/ComposerMetadata.php # getRegisteredLoaders() came in Composer 2, the application may have Composer 1
 		-
 			identifier: isset.property
-			path: src/Nette/Toolkits/LatteToolkit.php # the position of an exception in Latte 3.0
+			path: src/Toolkits/LatteToolkit.php # the position of an exception in Latte 3.0
 		-
 			identifier: argument.type
 			path: src/Nette/Toolkits/RenderToolkit.php # Nette\Application\IRouter of nette/application 3.0, User of nette/security 3.1

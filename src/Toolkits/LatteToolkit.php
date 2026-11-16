@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Lupa\Nette\Toolkits;
+namespace Lupa\Toolkits;
 
 use Latte\CompileException;
 use Latte\Engine;
@@ -8,7 +8,6 @@ use Latte\Loaders\FileLoader;
 use Lupa\InspectorException;
 use Lupa\Latte\TemplateMapper;
 use Lupa\Masking;
-use Lupa\Nette\NetteApplication;
 use Lupa\Tools\AppContext;
 use Lupa\Tools\Arguments;
 use Lupa\Tools\Schema;
@@ -180,15 +179,17 @@ final class LatteToolkit implements Toolkit
 			throw new InspectorException('The application does not use Latte.');
 		}
 
-		$container = NetteApplication::getContainerOf($context->application);
-		$templateFactory = $container->getByType('Nette\Application\UI\TemplateFactory', false)
-			?? $container->getByType('Nette\Application\UI\ITemplateFactory', false);
-		if ($templateFactory !== null) {
-			$latte = $templateFactory->createTemplate()->getLatte();
+		// the engine as the application configures it, with its filters and tags; a plain one without a framework
+		$application = $context->application;
+		$templateFactory = $application->getServiceByType('Nette\Application\UI\TemplateFactory')
+			?? $application->getServiceByType('Nette\Application\UI\ITemplateFactory');
+		if ($templateFactory !== null && method_exists($templateFactory, 'createTemplate')) {
+			$template = $templateFactory->createTemplate();
+			$latte = is_object($template) && method_exists($template, 'getLatte') ? $template->getLatte() : null;
 		} else {
-			$latteFactory = $container->getByType('Nette\Bridges\ApplicationLatte\LatteFactory', false)
-				?? $container->getByType('Nette\Bridges\ApplicationLatte\ILatteFactory', false);
-			$latte = $latteFactory ? $latteFactory->create() : new Engine;
+			$latteFactory = $application->getServiceByType('Nette\Bridges\ApplicationLatte\LatteFactory')
+				?? $application->getServiceByType('Nette\Bridges\ApplicationLatte\ILatteFactory');
+			$latte = $latteFactory !== null && method_exists($latteFactory, 'create') ? $latteFactory->create() : new Engine;
 		}
 
 		if (!$latte instanceof Engine) {
