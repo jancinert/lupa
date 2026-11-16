@@ -1,0 +1,2 @@
+services:
+	database: Dibi\Connection([driver: mysqli, host: 'db.local:3307', database: app_dev, password: secret, lazy: true])

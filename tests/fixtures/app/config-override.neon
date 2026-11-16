@@ -1,0 +1,3 @@
+# Added by inspector.applicationConfig: points the connection of config-initialize.neon to an allowed host.
+services:
+	database: Dibi\Connection([driver: mysqli, host: db.local, database: app_readonly, lazy: true])

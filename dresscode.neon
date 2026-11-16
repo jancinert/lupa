@@ -1,0 +1,11 @@
+use:
+	- nette
+
+paths:
+	- bin
+	- src
+	- tests
+
+# migrations that are wrong on purpose, for the tests of conflicts
+excludePaths:
+	- tests/fixtures/app/migrations

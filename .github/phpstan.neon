@@ -1,0 +1,4 @@
+# The analysis of CI: the project's own settings and the rules of Nette.
+includes:
+	- ../phpstan.neon
+	- ../vendor/nette/phpstan-rules/extension.neon

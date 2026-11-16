@@ -1,0 +1,6 @@
+services:
+	cache: Kdyby\Redis\RedisClient(redis, 6379, 2)
+	defaults: Kdyby\Redis\RedisClient()
+	socket: Kdyby\Redis\RedisClient('/run/redis.sock')
+	computed: Kdyby\Redis\RedisClient(::getenv('REDIS_HOST'))
+	forwarded: @cache

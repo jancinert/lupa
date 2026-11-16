@@ -1,0 +1,11 @@
+inspector:
+	bootstrap: bootstrap-nette2.php
+	audit: ../../tmp/audit/audit.jsonl
+	enableActive: [render, cache_invalidate]
+
+masking:
+	columns:
+		customers: [note]
+
+migrations:
+	directory: migrations

@@ -1,0 +1,69 @@
+name: Release checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.5']
+    name: Exported package on PHP ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: git archive --format=zip --output="${RUNNER_TEMP}/lupa.zip" HEAD
+      - run: python3 tests/package-check.py "${RUNNER_TEMP}/lupa.zip"
+
+  mcp:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.5']
+        mbstring: ['mbstring', ':mbstring']
+    name: MCP PHP ${{ matrix.php }} (${{ matrix.mbstring }})
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, sqlite3, ${{ matrix.mbstring }}
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: composer validate --strict
+      - run: composer update --no-interaction --no-progress
+      - run: composer check-platform-reqs
+      - run: php -r 'if (extension_loaded("mbstring") !== (getenv("EXPECTED_MBSTRING") === "mbstring")) { exit(1); }'
+        env:
+          EXPECTED_MBSTRING: ${{ matrix.mbstring }}
+      - run: vendor/bin/tester tests -s -C
+      - run: npm ci --prefix tests --ignore-scripts --no-fund
+      - run: npm run --prefix tests test:mcp
+
+  without_dom:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.5']
+    name: Masking without DOM on PHP ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: :dom
+          coverage: none
+      - run: composer update --no-interaction --no-progress
+      - run: php -r 'if (extension_loaded("dom")) { exit(1); }'
+      - run: vendor/bin/tester tests/Masking.phpt tests/EgressMasking.phpt tests/MaskingRepresentations.phpt tests/MaskingWorkLimit.phpt -s -C

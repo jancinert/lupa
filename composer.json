@@ -1,0 +1,59 @@
+{
+	"name": "jancinert/lupa",
+	"description": "MCP server that lets AI assistants inspect a running Nette application, including legacy PHP 7.4 / Nette 2.4 / Dibi projects.",
+	"type": "library",
+	"license": "BSD-3-Clause",
+	"authors": [
+		{"name": "Jan Cinert"}
+	],
+	"keywords": ["mcp", "nette", "dibi", "tracy", "latte", "ai", "inspector"],
+	"require": {
+		"php": ">=7.4",
+		"ext-json": "*",
+		"ext-tokenizer": "*",
+		"nette/di": "^2.4.16 || ^3.0.1",
+		"nette/neon": "^2.4 || ^3.0 || ^4.0",
+		"nette/schema": "^1.0"
+	},
+	"require-dev": {
+		"dibi/dibi": "^3.2 || ^4.0 || ^5.0",
+		"latte/latte": "^2.10 || ^3.0",
+		"nette/application": "^3.0",
+		"nette/bootstrap": "^3.0",
+		"nette/database": "^3.0",
+		"nette/forms": "^3.0",
+		"nette/mail": "^3.1 || ^4.0",
+		"nette/security": "^3.0",
+		"nette/tester": "^2.4",
+		"phpstan/phpstan": "^2.1",
+		"symfony/console": "^4.4 || ^5.4 || ^6.4 || ^7.0",
+		"tracy/tracy": "^2.6"
+	},
+	"suggest": {
+		"dibi/dibi": "database tools over Dibi",
+		"nette/database": "database tools over Nette Database",
+		"ext-dom": "masking HTML by its structure instead of hiding the whole page, and reading Tracy BlueScreen reports",
+		"ext-mbstring": "cutting long texts by their displayed width",
+		"ext-pdo": "database tools over PDO connections"
+	},
+	"autoload": {
+		"psr-4": {
+			"Lupa\\": "src/"
+		},
+		"classmap": ["src/exceptions.php"]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Lupa\\Tests\\Fixtures\\": "tests/fixtures/",
+			"App\\": "tests/fixtures/app/src/"
+		}
+	},
+	"bin": ["bin/lupa"],
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s -C"
+	},
+	"config": {
+		"sort-packages": true
+	}
+}

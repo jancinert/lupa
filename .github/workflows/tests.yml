@@ -1,0 +1,178 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+        dependencies: [highest]
+        include:
+          - { os: ubuntu-latest, php: '7.4', dependencies: lowest }
+          - { os: windows-latest, php: '8.4', dependencies: highest }
+
+    name: PHP ${{ matrix.php }} ${{ matrix.dependencies }} (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          # the Windows build of PHP comes without them
+          extensions: pdo_sqlite, sqlite3
+          coverage: none
+
+      - run: composer update --no-interaction --no-progress ${{ matrix.dependencies == 'lowest' && '--prefer-lowest' || '' }}
+      - run: vendor/bin/tester tests -s -C
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: output-${{ matrix.php }}-${{ matrix.dependencies }}-${{ matrix.os }}
+          path: tests/**/output
+
+  databases:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: PostgreSQL 17, platform: pgsql, image: 'postgres:17', port: 5432, user: lupa }
+          - { name: MySQL 8.0, platform: mysql, image: 'mysql:8.0', port: 3306, user: root }
+          - { name: MariaDB 11, platform: mysql, image: 'mariadb:11', port: 3306, user: root }
+          - { name: MySQL 5.7, platform: mysql, image: 'mysql:5.7', port: 3306, user: root }
+          - { name: MariaDB 10.3, platform: mysql, image: 'mariadb:10.3', port: 3306, user: root }
+          - { name: MariaDB 10.1, platform: mysql, image: 'mariadb:10.1', port: 3306, user: root }
+          - { name: PostgreSQL 17 PHP 7.4, platform: pgsql, image: 'postgres:17', port: 5432, user: lupa, php: '7.4' }
+          - { name: MySQL 8.0 PHP 7.4, platform: mysql, image: 'mysql:8.0', port: 3306, user: root, php: '7.4' }
+          - { name: PostgreSQL 17 PHP 8.5, platform: pgsql, image: 'postgres:17', port: 5432, user: lupa, php: '8.5' }
+          - { name: MySQL 8.0 PHP 8.5, platform: mysql, image: 'mysql:8.0', port: 3306, user: root, php: '8.5' }
+
+    name: ${{ matrix.name }}
+    env:
+      LUPA_TEST_DB_PLATFORM: ${{ matrix.platform }}
+      LUPA_TEST_DB_PORT: 5000
+      LUPA_TEST_DB_USER: ${{ matrix.user }}
+    services:
+      database:
+        image: ${{ matrix.image }}
+        ports:
+          - 5000:${{ matrix.port }}
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: lupa
+          POSTGRES_DB: lupa_fixture
+          MYSQL_ALLOW_EMPTY_PASSWORD: 1
+          MYSQL_DATABASE: lupa_fixture
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+          MARIADB_DATABASE: lupa_fixture
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php || '8.4' }}
+          coverage: none
+
+      - run: composer update --no-interaction --no-progress
+      # Retry only connecting, so a failed regression cannot be hidden by a later successful attempt.
+      - run: >
+          for _ in $(seq 1 30); do
+          php -r 'new PDO(getenv("LUPA_TEST_DB_PLATFORM") . ":host=127.0.0.1;port=5000;dbname=lupa_fixture", getenv("LUPA_TEST_DB_USER"), "");'
+          2>/dev/null && exit 0; sleep 2; done; exit 1
+      - run: vendor/bin/tester tests/DatabaseMaskingIntegration.phpt -s -C
+
+  code_coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: 'mysql:8.0'
+        ports:
+          - 5000:3306
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 1
+          MYSQL_DATABASE: lupa_fixture
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: pcov
+          # the tools run in worker processes; the prepended file measures them too
+          ini-values: auto_prepend_file=${{ github.workspace }}/tests/coverage-prepend.php, pcov.directory=${{ github.workspace }}/src, opcache.jit=disable
+
+      - run: composer update --no-interaction --no-progress
+      - run: for _ in $(seq 1 30); do php -r 'new PDO("mysql:host=127.0.0.1;port=5000", "root", "");' 2>/dev/null && exit 0; sleep 2; done; exit 1
+      - run: vendor/bin/tester tests -s -C --coverage ./coverage.xml --coverage-src ./src
+        env:
+          LUPA_TEST_DB_PLATFORM: mysql
+          LUPA_TEST_DB_PORT: 5000
+          LUPA_TEST_DB_USER: root
+      # the upload works once the repository is enabled on coveralls.io; until then it must not fail the build
+      - uses: coverallsapp/github-action@v2
+        if: always()
+        with:
+          file: coverage.xml
+          format: clover
+          fail-on-error: false
+
+  # The PHP 7.4 to 8.1 of the runners ends the process at once when the memory runs out, so the tests above cannot
+  # expect an answer from the shutdown functions there. The official images of PHP run them, and the first command
+  # fails the job should that ever change.
+  official_images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1']
+
+    name: PHP ${{ matrix.php }} in the official image
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - run: composer update --no-interaction --no-progress
+      - run: >
+          docker run --rm -v "$PWD:/app" -w /app php:${{ matrix.php }}-cli sh -c '
+          php -r "register_shutdown_function(function () { echo \"ran\"; }); ini_set(\"memory_limit\", \"16M\"); str_repeat(\"x\", 100000000);" 2>/dev/null | grep -q ran
+          && chown -R www-data /app
+          && su www-data -s /bin/sh -c "HOME=/tmp php vendor/bin/tester tests -s -C"'
+
+  nette2:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dependencies: [highest, lowest]
+
+    name: Nette 2.4 ${{ matrix.dependencies }} on PHP 7.4
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+
+      - run: composer remove --dev --no-update phpstan/phpstan
+      # nette/finder before 2.4 is no valid code for PHP 7, which shows only when the cache happens to clean itself
+      - run: composer require --no-update nette/di:~2.4.16 nette/neon:~2.4.0
+      - run: >
+          composer require --dev --no-interaction --no-progress
+          nette/bootstrap:~2.4.0 nette/application:~2.4.0 nette/http:~2.4.0 nette/forms:~2.4.0 nette/security:~2.4.0
+          nette/database:~2.4.0 nette/mail:~2.4.0 nette/caching:~2.5.0 latte/latte:~2.4 tracy/tracy:~2.4
+          symfony/console:^4.4 dibi/dibi:^3.2 nette/finder:^2.4
+      - if: matrix.dependencies == 'lowest'
+        run: composer update --no-interaction --no-progress --prefer-lowest
+      - run: vendor/bin/tester tests -s -C
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: output-nette2-${{ matrix.dependencies }}
+          path: tests/**/output

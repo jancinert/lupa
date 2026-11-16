@@ -1,0 +1,33 @@
+name: Dependency audit
+
+# Weekly and on demand, not on every push: a new advisory in a development dependency
+# is not caused by the change being tested and must not fail its build.
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.5']
+    name: Advisories on PHP ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: composer update --no-interaction --no-progress
+      - run: composer audit --abandoned=report
+      - run: npm ci --prefix tests --ignore-scripts --no-fund
+      - run: npm audit --prefix tests

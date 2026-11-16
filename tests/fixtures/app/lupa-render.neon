@@ -1,0 +1,4 @@
+inspector:
+	bootstrap: bootstrap-render.php
+	audit: ../../tmp/audit/audit.jsonl
+	enableActive: [render, cache_invalidate]

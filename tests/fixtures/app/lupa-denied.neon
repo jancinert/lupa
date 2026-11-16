@@ -1,0 +1,6 @@
+inspector:
+	bootstrap: bootstrap.php
+	audit: ../../tmp/audit/audit.jsonl
+
+guard:
+	allowedHosts: [localhost]

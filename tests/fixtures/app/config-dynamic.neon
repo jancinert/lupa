@@ -1,0 +1,4 @@
+services:
+	database: Dibi\Connection([host: ::getenv('LUPA_TEST_HOST'), database: app_dev, lazy: true])
+	defaultHost: Dibi\Connection([database: app_dev, lazy: true])
+	sqlite: Dibi\Connection([driver: sqlite3, database: '/tmp/app.sqlite', lazy: true])

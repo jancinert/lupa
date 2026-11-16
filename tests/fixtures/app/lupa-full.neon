@@ -1,0 +1,13 @@
+inspector:
+	bootstrap: bootstrap-full.php
+	audit: ../../tmp/audit/audit.jsonl
+
+masking:
+	columns:
+		customers: [note]
+
+database:
+	rowLimit: 3
+
+migrations:
+	directory: migrations

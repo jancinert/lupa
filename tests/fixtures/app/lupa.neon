@@ -1,0 +1,11 @@
+inspector:
+	bootstrap: bootstrap.php
+	timeout: 10
+	audit: ../../tmp/audit/audit.jsonl
+
+guard:
+	allowedHosts: [db.local]
+	deniedDatabases: ['*_prod']
+
+services:
+	- Lupa\Tests\Fixtures\TestToolkit

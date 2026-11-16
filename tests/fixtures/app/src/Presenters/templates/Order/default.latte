@@ -1,0 +1,8 @@
+{block content}
+	<h1>Orders</h1>
+	{snippet items}
+		{foreach $items as $item}
+			{$item->name}
+		{/foreach}
+	{/snippet}
+{/block}

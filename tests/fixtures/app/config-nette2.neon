@@ -1,0 +1,24 @@
+parameters:
+	mail:
+		from: info@example.com
+		password: topsecret
+
+application:
+	scanDirs: false
+	mapping:
+		*: App\*Module\Presenters\*Presenter
+
+session:
+	autoStart: false
+
+database:
+	dsn: 'sqlite:%runtimeDir%/app.sqlite'
+
+services:
+	dibi: Dibi\Connection([driver: sqlite3, database: %runtimeDir%/app.sqlite, lazy: true])
+	orders: App\Model\OrderFacade
+	orderPresenter: App\Presenters\OrderPresenter
+	- App\Presenters\LegacyPresenter
+	router: App\Routing\LegacyRouterFactory::create
+	orderFormFactory: App\Forms\OrderFormFactory
+	authorizator: App\Security\AuthorizatorFactory::create

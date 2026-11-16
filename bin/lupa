@@ -1,0 +1,11 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// The inspector's own classes always come from this checkout; the application's autoloader is loaded later.
+require_once __DIR__ . '/../src/autoload.php';
+
+$composerAutoload = $GLOBALS['_composer_autoload_path'] ?? null;
+$commandLine = new Lupa\Cli\CommandLine(__FILE__, is_string($composerAutoload) ? realpath($composerAutoload) ?: null : null);
+exit($commandLine->run(array_map([Lupa\Scalar::class, 'toString'], array_values((array) ($_SERVER['argv'] ?? [])))));

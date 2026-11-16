@@ -1,0 +1,7 @@
+inspector:
+	bootstrap: bootstrap-configurator.php
+	audit: ../../tmp/audit/audit.jsonl
+	applicationConfig: [config-override.neon]
+
+guard:
+	allowedHosts: [db.local]

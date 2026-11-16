@@ -1,0 +1,58 @@
+parameters:
+	level: max
+
+	paths:
+		- src
+		- bin/lupa
+
+	excludePaths:
+		- src/Nette/Render/LegacyUserStorage.php # implements an interface that nette/security 3.2 no longer has
+
+	# The code supports several major versions of the libraries of the inspected application, while the analysis
+	# sees only the installed ones: what it calls impossible or undefined exists in the other versions.
+	ignoreErrors:
+		-
+			identifier: function.impossibleType
+			path: src/Database/DibiConnection.php # the SQLite driver of Dibi 4
+		-
+			identifier: instanceof.alwaysTrue
+			path: src/Database/DibiConnection.php # Dibi 4 returns the number of affected rows too
+		-
+			identifiers: [nullCoalesce.property, property.notFound]
+			path: src/Nette/ContainerReader.php # properties added in nette/di 3.1, and those of nette/di 2.4
+		-
+			identifier: method.notFound
+			paths:
+				- src/Nette/Toolkits/FormToolkit.php # methods of the classes, not of their interfaces
+				- src/Nette/Toolkits/LatteToolkit.php
+				- src/Nette/Toolkits/RouterToolkit.php
+		-
+			identifiers: [method.notFound, property.notFound]
+			path: src/Nette/NetteApplication.php # the Configurator is Nette\Configurator or Nette\Bootstrap\Configurator
+		-
+			identifiers: [argument.type, function.impossibleType]
+			path: src/Nette/Toolkits/RouterToolkit.php # the router and the HTTP request of Nette 2.4
+		-
+			identifier: property.private
+			path: src/Nette/Toolkits/FormToolkit.php # the caption is public in nette/forms 2.4
+		-
+			identifier: new.noConstructor
+			path: src/DI/DatabaseExtension.php # the Statement of nette/di 2.4, an alias in nette/di 3
+		-
+			identifier: function.alreadyNarrowedType
+			paths:
+				- src/Nette/Toolkits/FormToolkit.php # getComponentTree() came in nette/component-model 3.1
+				- src/Nette/Toolkits/RouterToolkit.php # getFlags() is missing in nette/routing 3.0.0
+				- src/Nette/Toolkits/RenderToolkit.php # getHttpCode() is missing in nette/application 2.4.0
+		-
+			identifier: isset.property
+			path: src/Nette/Toolkits/LatteToolkit.php # the position of an exception in Latte 3.0
+		-
+			identifier: argument.type
+			path: src/Nette/Toolkits/RenderToolkit.php # Nette\Application\IRouter of nette/application 3.0, User of nette/security 3.1
+		-
+			identifier: offsetAccess.nonOffsetAccessible
+			path: src/Nette/Toolkits/RenderToolkit.php # the private registry of nette/di 2.4
+		-
+			identifier: arguments.count
+			path: src/Nette/Toolkits/RenderToolkit.php

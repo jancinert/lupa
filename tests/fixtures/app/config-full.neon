@@ -1,0 +1,29 @@
+extensions:
+	inject: Nette\DI\Extensions\InjectExtension
+
+parameters:
+	mail:
+		from: info@example.com
+		password: topsecret
+	credentials:
+		gateway:
+			live: fixture-nested-value
+
+services:
+	database: Dibi\Connection([driver: sqlite3, database: %runtimeDir%/app.sqlite, lazy: true])
+	netteDatabase:
+		factory: Nette\Database\Connection('sqlite:%runtimeDir%/app.sqlite')
+		autowired: false
+	orders: App\Model\OrderFacade
+	mailer:
+		factory: App\Model\Mailer(%mail%)
+		inject: true
+	presenterFactory:
+		factory: Nette\Application\PresenterFactory
+		setup:
+			- setMapping([*: App\*Module\Presenters\*Presenter])
+	orderPresenter: App\Presenters\OrderPresenter
+	router: App\Routing\RouterFactory::create
+	linkGenerator: Nette\Application\LinkGenerator(@router, Nette\Http\UrlScript('http://example.test/'))
+	orderFormFactory: App\Forms\OrderFormFactory
+	authorizator: App\Security\AuthorizatorFactory::create

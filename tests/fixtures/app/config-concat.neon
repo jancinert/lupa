@@ -1,0 +1,12 @@
+# dbName and dbHost are dynamic parameters: the compiled code concatenates them with the literals
+parameters:
+	dbName: shop
+	dbHost: db
+
+services:
+	concat: Dibi\Connection([driver: mysqli, host: localhost, database: 'dev_%dbName%', lazy: true])
+	concatDsn: Nette\Database\Connection('mysql:host=localhost;dbname=%dbName%')
+	pdo: PDO('mysql:host=db.example.com;dbname=shop')
+	pdoDynamic: PDO('mysql:host=%dbHost%;dbname=shop')
+	dsnIgnored: Dibi\Connection([driver: mysqli, host: db.example.com, dsn: 'mysql:host=localhost', lazy: true])
+	withPort: Dibi\Connection([driver: mysqli, host: db.example.com, database: shop, port: 3306])

@@ -1,0 +1,3 @@
+services:
+	# not lazy: creating it connects
+	database: Dibi\Connection([driver: mysqli, host: remote.invalid, database: app])
